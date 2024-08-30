@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import StandardScaler
 
 #데이터 경로
-directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
+directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
 
 # 한 사람의 모든 데이터 통합
 # 각 폴더 내의 CSV 파일들을 하나로 합쳐서 저장
@@ -30,20 +30,21 @@ combined_df.to_csv(combined_csv_path, index=False)
 
 # 데이터 불러오기 및 결측값 제거
 data = pd.read_csv(os.getcwd()+'/combined.csv')
-data = data.dropna(subset=['lat', 'lng', 'time_label'])
+data = data.dropna(subset=['lat', 'lng', 'TL'])
 
 # lat, lng, time_label 열만 사용
-X = data[['lat', 'lng', 'time_label']]
+X = data[['lat', 'lng', 'TL']]
 
 # train-test split
-X_train, X_test = train_test_split(X, test_size=0.2, random_state=42)
+X_train, X_test = train_test_split(X, test_size=0.2)
 
 # Isolation Forest 모델 학습
-iso_forest = IsolationForest(contamination=0.2, random_state=42)
+iso_forest = IsolationForest(contamination=0.14)
 iso_forest.fit(X_train)
 
 # 예측
 predictions = iso_forest.predict(X_test)
+
 
 # 예측 결과를 데이터프레임에 추가
 X_test['anomaly'] = predictions
@@ -52,16 +53,26 @@ X_test['anomaly'] = predictions
 fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(111, projection='3d')
 
+#정상/비정상 데이터 개수
+nor_count=0
+abn_count=0
+
+for p in X_test['anomaly']:
+    if p==1:
+        nor_count+=1
+    else:
+        abn_count+=1
+
 # 정상 데이터 포인트
 ax.scatter(X_test[X_test['anomaly'] == 1]['lat'], 
            X_test[X_test['anomaly'] == 1]['lng'], 
-           X_test[X_test['anomaly'] == 1]['time_label'], 
+           X_test[X_test['anomaly'] == 1]['TL'], 
            color='blue', s=5, label='Normal')
 
 # 이상 데이터 포인트
 ax.scatter(X_test[X_test['anomaly'] == -1]['lat'], 
            X_test[X_test['anomaly'] == -1]['lng'], 
-           X_test[X_test['anomaly'] == -1]['time_label'], 
+           X_test[X_test['anomaly'] == -1]['TL'], 
            color='red', s=5, label='Anomaly')
 
 # 그래프 제목 및 축 라벨
@@ -75,3 +86,5 @@ ax.legend()
 
 # 그래프 보여주기
 plt.show()
+
+print(f'정상 개수: {nor_count}, 이상치 개수: {abn_count}')

@@ -6,10 +6,11 @@ from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-#데이터 경로(위드라이브)
-#directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
-#(어디쉐어)
-directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
+#데이터 경로
+directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
+
+#파일에 따른 start, end TimeLabel 리스트
+start_end_list=[]
 
 #데이터 불러오기 (위도, 경도, 시간레이블)
 def extract_lat_lng_TL_from_csv(directory):
@@ -18,11 +19,19 @@ def extract_lat_lng_TL_from_csv(directory):
         if filename.endswith(".csv"):
             filepath = os.path.join(directory, filename)
             df = pd.read_csv(filepath)
-            lat_lng_list=[[row['lat'], row['lng'], row['TL']] for _, row in df.iterrows()]
+            lat_lng_list=[]
+            for index, row in df.iterrows():
+                lat_lng_list.append([row['lat'], row['lng']])
+                if index==0:
+                    s=row['time_label']
+                elif index==(df.shape[0]-1):
+                    e=row['time_label']
+            start_end_list.append([s, e])
             all_lat_lng_TL_lists.append(lat_lng_list)   
 
     #결측치 제거
     all_lat_lng_TL_lists.pop(-1)
+    start_end_list.pop(-1)
 
     return all_lat_lng_TL_lists
 
@@ -31,18 +40,27 @@ def interpolate_path(path, num_points=10):
     latitudes = [point[0] for point in path]
     longitudes = [point[1] for point in path]
     start_time_labels= [point[2] for point in path]
+    end_time_labels= [point[3] for point in path]
     distances = np.linspace(0, 1, len(path))
     interp_lat = interp1d(distances, latitudes, kind='linear')
     interp_lon = interp1d(distances, longitudes, kind='linear')
     interp_start_TL = interp1d(distances, start_time_labels, kind='linear')
+    interp_end_TL = interp1d(distances, end_time_labels, kind='linear')
     new_distances = np.linspace(0, 1, num_points)
     new_latitudes = interp_lat(new_distances)
     new_longitudes = interp_lon(new_distances)
-    new_TL = interp_start_TL(new_distances)
-    return np.column_stack((new_latitudes, new_longitudes, new_TL)).flatten()
+    new_start_TL = interp_start_TL(new_distances)
+    new_end_TL=interp_end_TL(new_distances)
+    return np.column_stack((new_latitudes, new_longitudes, new_start_TL, new_end_TL)).flatten()
 
 # 경로 및 시간(레이블값) 데이터
 lat_lng_TL_values = extract_lat_lng_TL_from_csv(directory)
+
+# 경로에 start, end 레이블 추가하기
+for location, time in zip(lat_lng_TL_values, start_end_list):
+    for point in location:
+        point.extend(time)
+
 
 # 보간된 경로 벡터들
 path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
@@ -51,22 +69,6 @@ path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
 dbscan=DBSCAN(eps=0.4, min_samples=20)
 labels = dbscan.fit_predict(path_vectors)
 
-# 3D 시각화
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-for segment, label in zip(path_vectors, labels):
-    lat=segment[0::3]
-    lng=segment[1::3]
-    TL=segment[2::3]
-    color = 'red' if label == -1 else 'blue'
-    ax.scatter(lat, lng, TL, c=color, marker='o')
-
-ax.set_xlabel('Latitude')
-ax.set_ylabel('Longitude')
-ax.set_zlabel('Time Label')
-plt.title('lat-lng-TL 3D graph')
-plt.show()
 
 normal_count=0
 abnormal_count=0
