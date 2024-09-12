@@ -4,9 +4,15 @@ from sklearn.cluster import DBSCAN
 import os
 from scipy.interpolate import interp1d
 import numpy as np
+import matplotlib.pyplot as plt
+import statistics
+from sklearn.neighbors import NearestNeighbors
 
 #데이터 경로
+#(위드라이브)
 directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
+#(어디쉐어)
+#directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
 
 #데이터 불러오기 (위도, 경도, 시간레이블)
 def extract_lat_lng_TL_from_csv(directory):
@@ -19,7 +25,7 @@ def extract_lat_lng_TL_from_csv(directory):
             all_lat_lng_TL_lists.append(lat_lng_list)
 
     #결측치 제거
-    all_lat_lng_TL_lists.pop(-1)
+    #all_lat_lng_TL_lists.pop(-1)
 
     return all_lat_lng_TL_lists
 
@@ -41,6 +47,55 @@ def interpolate_path(path, num_points=10):
 # 경로 및 시간(레이블값) 데이터
 lat_lng_TL_values = extract_lat_lng_TL_from_csv(directory)
 
+# 보간된 경로 벡터들
+path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
+
+# k 값을 설정 (예: 4)
+k = 6
+
+# NearestNeighbors 모델을 사용하여 이웃 계산
+neigh = NearestNeighbors(n_neighbors=k)
+neigh.fit(path_vectors)
+
+# 각 데이터 포인트의 k번째 이웃까지의 거리 계산
+distances, indices = neigh.kneighbors(path_vectors)
+
+# k번째 이웃까지의 거리만 추출 (k번째 이웃의 거리를 사용)
+k_distances = distances[:, -1]
+
+# k-거리를 오름차순으로 정렬
+k_distances = np.sort(k_distances)
+
+# k-거리의 차이 계산 (기울기)
+gradients = np.diff(k_distances)
+
+# 기울기의 변화량 계산
+gradients_diff = np.diff(gradients)
+
+# 급격한 변화가 발생하는 인덱스 찾기 (최초의 큰 변화 찾기)
+threshold = np.percentile(gradients_diff, 95)  # 기울기 변화 중 상위 5%를 임계값으로 설정
+print('threshold',threshold)
+elbow_start = np.argmax(gradients_diff > threshold)  # 첫 번째 급격한 변화 지점
+elbow_end = len(gradients_diff) - np.argmax(np.flip(gradients_diff) > threshold) - 1  # 마지막 급격한 변화 지점
+
+# y-좌표 값 출력 (k-거리)
+y_values = k_distances[elbow_start:elbow_end + 2]
+print(y_values)
+eps_opt=statistics.median(y_values) # 중앙값으로 결정
+print(f"eps_opt:{eps_opt}")
+
+
+# k-거리 그래프 시각화
+plt.plot(k_distances, label='k-distances')
+plt.axvline(x=elbow_start, color='r', linestyle='--', label='Elbow start')
+plt.axvline(x=elbow_end, color='g', linestyle='--', label='Elbow end')
+plt.xlabel("Data Points sorted by distance")
+plt.ylabel(f"Distance to {k}th nearest neighbor")
+plt.title(f"k-distance Graph (k={k})")
+plt.legend()
+plt.show()
+
+from sklearn.metrics import silhouette_score
 
 def evaluate_dbscan(data, eps_values, min_samples_values):
     best_score = -1
@@ -62,8 +117,8 @@ def evaluate_dbscan(data, eps_values, min_samples_values):
     return best_eps, best_min_samples
 
 # 예시 사용
-eps_values = np.arange(1, 2, 0.5)
-min_samples_values = range(20, 50, 10)
+eps_values = np.arange(1.2, 1.3, 0.1)
+min_samples_values = range(10, 30, 10)
 data = np.concatenate(lat_lng_TL_values)  # 모든 데이터 포인트를 하나로 결합
 best_eps, best_min_samples = evaluate_dbscan(data, eps_values, min_samples_values)
 

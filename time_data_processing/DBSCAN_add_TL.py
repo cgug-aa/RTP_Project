@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 #데이터 경로(위드라이브)
-#directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
+directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
 #(어디쉐어)
-directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
+#directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
 
 #데이터 불러오기 (위도, 경도, 시간레이블)
 def extract_lat_lng_TL_from_csv(directory):
@@ -18,7 +18,7 @@ def extract_lat_lng_TL_from_csv(directory):
         if filename.endswith(".csv"):
             filepath = os.path.join(directory, filename)
             df = pd.read_csv(filepath)
-            lat_lng_list=[[row['lat'], row['lng'], row['TL']] for _, row in df.iterrows()]
+            lat_lng_list=[[row['lat'], row['lng'], row['time_label']] for _, row in df.iterrows()]
             all_lat_lng_TL_lists.append(lat_lng_list)   
 
     #결측치 제거
@@ -48,7 +48,7 @@ lat_lng_TL_values = extract_lat_lng_TL_from_csv(directory)
 path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
 
 #DBSCAN 모델링
-dbscan=DBSCAN(eps=0.4, min_samples=20)
+dbscan=DBSCAN(eps=1.2, min_samples=10)
 labels = dbscan.fit_predict(path_vectors)
 
 # 3D 시각화
