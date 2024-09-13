@@ -8,8 +8,7 @@ from sklearn.preprocessing import StandardScaler
 
 #데이터 경로(위드라이브)
 directory=os.getcwd()+'/data/Label/위드라이브/1be2e43d69994758973f6185bdd973d0'
-#데이터 경로(어디쉐어)
-#directory=os.getcwd()+'\\data\\어디쉐어전처리데이터\\___ecfd1086a6934ae08b555b3ae880d31e'
+
 
 # 한 사람의 모든 데이터 통합
 # 각 폴더 내의 CSV 파일들을 하나로 합쳐서 저장
@@ -26,12 +25,8 @@ for folder in os.listdir(directory):
 # 모든 데이터프레임을 하나로 합치기
 combined_df = pd.concat(dataframes, ignore_index=True)
 
-# 합쳐진 데이터프레임 저장
-combined_csv_path = os.path.join(os.getcwd(), 'combined.csv')
-combined_df.to_csv(combined_csv_path, index=False)
-
 # 데이터 불러오기 및 결측값 제거
-data = pd.read_csv(os.getcwd()+'/combined.csv')
+data = combined_df
 data = data.dropna(subset=['lat', 'lng', 'time_label'])
 
 # lat, lng, time_label 열만 사용

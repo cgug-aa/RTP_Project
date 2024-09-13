@@ -42,16 +42,21 @@ def extract_lat_lng_TL_from_csv(directory):
 def interpolate_path(path, num_points=10):
     latitudes = [point[0] for point in path]
     longitudes = [point[1] for point in path]
-    time_labels= [point[2] for point in path]
+    start_time_labels= [point[2] for point in path]
+    end_time_labels= [point[3] for point in path]
     distances = np.linspace(0, 1, len(path))
     interp_lat = interp1d(distances, latitudes, kind='linear')
     interp_lon = interp1d(distances, longitudes, kind='linear')
-    interp_TL = interp1d(distances, time_labels, kind='linear')
+    interp_start_TL = interp1d(distances, start_time_labels, kind='linear')
+    interp_end_TL = interp1d(distances, end_time_labels, kind='linear')
     new_distances = np.linspace(0, 1, num_points)
     new_latitudes = interp_lat(new_distances)
     new_longitudes = interp_lon(new_distances)
-    new_TL = interp_TL(new_distances)
-    return np.column_stack((new_latitudes, new_longitudes, new_TL)).flatten()
+    new_start_TL = interp_start_TL(new_distances)
+    new_end_TL=interp_end_TL(new_distances)
+    return np.column_stack((new_latitudes, new_longitudes, new_start_TL, new_end_TL)).flatten()
+
+
 
 # 경로 및 시간(레이블값) 데이터
 lat_lng_TL_values = extract_lat_lng_TL_from_csv(directory)
@@ -59,13 +64,13 @@ lat_lng_TL_values = extract_lat_lng_TL_from_csv(directory)
 # 경로에 start, end 레이블 추가하기
 for location, time in zip(lat_lng_TL_values, start_end_list):
     for point in location:
-        point.append((time[0]*4+time[1])/4)
+        point.extend([time[0], time[1]])
 
 # 보간된 경로 벡터들
 path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
 
 #DBSCAN 모델링
-dbscan=DBSCAN(eps=0.4, min_samples=20)
+dbscan=DBSCAN(eps=1.2, min_samples=15)
 labels = dbscan.fit_predict(path_vectors)
 
 normal_count=0
@@ -95,9 +100,9 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 for segment, label in zip(path_vectors, labels):
-    lat=segment[0::3]
-    lng=segment[1::3]
-    TL=segment[2::3]
+    lat=segment[0::4]
+    lng=segment[1::4]
+    TL=(segment[2::4]*4 + segment[3::4])/4
     color = 'red' if label == -1 else 'blue'
     ax.scatter(lat, lng, TL, c=color, marker='o')
 

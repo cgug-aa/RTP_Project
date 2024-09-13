@@ -65,7 +65,7 @@ for location, time in zip(lat_lng_TL_values, start_end_list):
 path_vectors = np.array([interpolate_path(path) for path in lat_lng_TL_values])
 
 #DBSCAN 모델링
-dbscan=DBSCAN(eps=0.4, min_samples=20)
+dbscan=DBSCAN(eps=1.2, min_samples=15)
 labels = dbscan.fit_predict(path_vectors)
 
 
